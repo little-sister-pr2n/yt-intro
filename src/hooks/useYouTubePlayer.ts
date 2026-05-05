@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 
-// Module-level promise so the API loads once across StrictMode double-invokes
-function getYTReady() {
+function getYTReady(): Promise<typeof YT> {
   if (window._ytReadyPromise) return window._ytReadyPromise;
 
   window._ytReadyPromise = new Promise((resolve) => {
@@ -12,7 +11,7 @@ function getYTReady() {
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       prev?.();
-      resolve(window.YT);
+      resolve(window.YT!);
     };
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const tag = document.createElement('script');
@@ -24,21 +23,19 @@ function getYTReady() {
   return window._ytReadyPromise;
 }
 
-export function useYouTubePlayer(onEnded) {
-  const playerRef = useRef(null);
+export function useYouTubePlayer(onEnded: () => void) {
+  const playerRef = useRef<YT.Player | null>(null);
   const [ready, setReady] = useState(false);
-  // Keep onEnded current without re-running the effect
   const onEndedRef = useRef(onEnded);
   useEffect(() => { onEndedRef.current = onEnded; });
 
   useEffect(() => {
     let cancelled = false;
-    let container = null;
+    let container: HTMLDivElement | null = null;
 
-    getYTReady().then((YT) => {
+    getYTReady().then((yt) => {
       if (cancelled) return;
 
-      // Create the player container outside React's tree to avoid reconciliation conflicts
       container = document.createElement('div');
       Object.assign(container.style, {
         width: '1px',
@@ -51,7 +48,7 @@ export function useYouTubePlayer(onEnded) {
       });
       document.body.appendChild(container);
 
-      playerRef.current = new YT.Player(container, {
+      playerRef.current = new yt.Player(container, {
         width: 1,
         height: 1,
         playerVars: { autoplay: 0, controls: 0, disablekb: 1 },
@@ -60,14 +57,12 @@ export function useYouTubePlayer(onEnded) {
             if (!cancelled) setReady(true);
           },
           onStateChange(e) {
-            if (e.data === YT.PlayerState.ENDED) {
+            if (e.data === yt.PlayerState.ENDED) {
               onEndedRef.current?.();
             }
           },
           onError(e) {
-            // 100: not found, 101/150: embedding disabled — skip the song
             if ([100, 101, 150].includes(e.data)) {
-              console.warn('[YT] skipping unplayable video, error:', e.data);
               onEndedRef.current?.();
             }
           },
@@ -84,7 +79,7 @@ export function useYouTubePlayer(onEnded) {
     };
   }, []);
 
-  const play = useCallback((videoId, startSeconds, endSeconds) => {
+  const play = useCallback((videoId: string, startSeconds: number, endSeconds: number) => {
     playerRef.current?.loadVideoById({ videoId, startSeconds, endSeconds });
   }, []);
 
