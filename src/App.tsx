@@ -1,23 +1,22 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { judge } from './utils/judge';
 import { createQueue } from './utils/queue';
+import type { Difficulty, QuizPhase, Song, HistoryEntry, SongQueue } from './types';
 import songs from './songs.json';
 
-const DIFFICULTY_OFFSET = { normal: 10, hard: 5, expert: 1, monster: 0 };
-const DIFFICULTIES = ['normal', 'hard', 'expert', 'monster'];
+const DIFFICULTY_OFFSET: Record<Difficulty, number> = { normal: 10, hard: 5, expert: 1, monster: 0 };
+const DIFFICULTIES: Difficulty[] = ['normal', 'hard', 'expert', 'monster'];
 
-function playSeconds(song, diff) {
+function playSeconds(song: Song, diff: Difficulty): number {
   return song.intro_seconds + DIFFICULTY_OFFSET[diff];
 }
 
-function thumb(videoId) {
+function thumb(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 }
 
-// --- Sub-components ---
-
-function DifficultySelector({ value, onChange }) {
+function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: (d: Difficulty) => void }) {
   return (
     <div className="diff-selector">
       {DIFFICULTIES.map((d) => (
@@ -33,7 +32,7 @@ function DifficultySelector({ value, onChange }) {
   );
 }
 
-function ScoreBoard({ correct, total }) {
+function ScoreBoard({ correct, total }: { correct: number; total: number }) {
   return (
     <div className="scoreboard">
       <span className="score-num">{correct}</span>
@@ -43,7 +42,7 @@ function ScoreBoard({ correct, total }) {
   );
 }
 
-function HistoryPanel({ history }) {
+function HistoryPanel({ history }: { history: HistoryEntry[] }) {
   const [open, setOpen] = useState(false);
   if (!history.length) return null;
   return (
@@ -69,31 +68,27 @@ function HistoryPanel({ history }) {
   );
 }
 
-// --- Main App ---
-
 export default function App() {
-  const [difficulty, setDifficulty] = useState('expert');
+  const [difficulty, setDifficulty] = useState<Difficulty>('expert');
   const [started, setStarted] = useState(false);
 
-  // Quiz phase: 'playing' | 'answering' | 'result'
-  const [phase, setPhase] = useState('playing');
+  const [phase, setPhase] = useState<QuizPhase>('playing');
   const phaseRef = useRef(phase);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  const queueRef = useRef(null);
-  const [song, setSong] = useState(null);
+  const queueRef = useRef<SongQueue | null>(null);
+  const [song, setSong] = useState<Song | null>(null);
   const [answer, setAnswer] = useState('');
   const [isCorrect, setIsCorrect] = useState(false);
   const [replayActive, setReplayActive] = useState(false);
   const [score, setScore] = useState({ c: 0, t: 0 });
-  const [history, setHistory] = useState([]);
-  const inputRef = useRef(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const onEnded = useCallback(() => {
     if (phaseRef.current === 'playing') {
       setPhase('answering');
     } else {
-      // result phase replay finished
       setReplayActive(false);
     }
   }, []);
@@ -101,8 +96,8 @@ export default function App() {
   const { ready, play } = useYouTubePlayer(onEnded);
 
   const nextSong = useCallback(
-    (diff) => {
-      const s = queueRef.current.next();
+    (diff: Difficulty) => {
+      const s = queueRef.current!.next();
       setSong(s);
       setAnswer('');
       setPhase('playing');
@@ -113,7 +108,7 @@ export default function App() {
   );
 
   const handleStart = useCallback(() => {
-    queueRef.current = createQueue(songs);
+    queueRef.current = createQueue(songs as Song[]);
     setScore({ c: 0, t: 0 });
     setHistory([]);
     setStarted(true);
@@ -125,7 +120,7 @@ export default function App() {
   }, [phase]);
 
   const handleSubmit = useCallback(
-    (e) => {
+    (e?: FormEvent) => {
       e?.preventDefault();
       if (phase !== 'answering' || !song) return;
       const ok = judge(answer, song.title);
@@ -162,7 +157,6 @@ export default function App() {
     nextSong(difficulty);
   }, [difficulty, nextSong]);
 
-  // --- Start screen ---
   if (!started) {
     return (
       <div className="app">
@@ -180,7 +174,6 @@ export default function App() {
     );
   }
 
-  // --- Quiz screen ---
   return (
     <div className="app">
       <header className="app-header">
