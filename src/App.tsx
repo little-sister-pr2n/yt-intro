@@ -50,12 +50,12 @@ function thumb(videoId: string): string {
 
 function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: (d: Difficulty) => void }) {
   return (
-    <div className="flex gap-2 flex-wrap justify-center">
+    <div className="flex gap-1.5 flex-wrap">
       {DIFFICULTIES.map((d) => (
         <Button
           key={d}
           variant={value === d ? 'default' : 'outline'}
-          size="sm"
+          size="xs"
           onClick={() => onChange(d)}
         >
           {d}
@@ -65,50 +65,31 @@ function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: 
   );
 }
 
-function ScoreBoard({ correct, total }: { correct: number; total: number }) {
-  return (
-    <div className="text-sm font-semibold tabular-nums">
-      {correct} / {total}
-    </div>
-  );
-}
-
 function HistoryPanel({ history }: { history: HistoryEntry[] }) {
-  const [open, setOpen] = useState(false);
   if (!history.length) return null;
   return (
-    <div className="border-t px-4 py-3">
-      <button
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        onClick={() => setOpen((o) => !o)}
-      >
-        履歴 ({history.length}) {open ? '▲' : '▼'}
-      </button>
-      {open && (
-        <div className="mt-3 flex flex-col gap-2 max-h-72 overflow-y-auto">
-          {[...history].reverse().map((item, i) => (
-            <div
-              key={i}
-              className={`flex items-center gap-3 rounded-lg border p-2 ${
-                item.correct
-                  ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
-                  : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
-              }`}
-            >
-              <img src={item.thumbnailUrl} alt="" className="w-14 h-10 object-cover rounded" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{item.title}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {item.userAnswer || '(未回答)'}
-                </div>
-              </div>
-              <span className={`text-lg font-bold ${item.correct ? 'text-green-600' : 'text-red-500'}`}>
-                {item.correct ? '○' : '×'}
-              </span>
+    <div className="flex flex-col gap-2 overflow-y-auto">
+      {[...history].reverse().map((item, i) => (
+        <div
+          key={i}
+          className={`flex items-center gap-3 rounded-lg border p-2 ${
+            item.correct
+              ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+              : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
+          }`}
+        >
+          <img src={item.thumbnailUrl} alt="" className="w-14 h-10 object-cover rounded" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{item.title}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {item.userAnswer || '(未回答)'}
             </div>
-          ))}
+          </div>
+          <span className={`text-lg font-bold ${item.correct ? 'text-green-600' : 'text-red-500'}`}>
+            {item.correct ? '○' : '×'}
+          </span>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -226,74 +207,89 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-svh flex flex-col max-w-md mx-auto">
+    <div className="h-svh flex flex-col max-w-md mx-auto overflow-hidden">
+      {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10">
-        <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
+          <DifficultySelector value={difficulty} onChange={setDifficulty} />
+        </div>
         <div className="flex items-center gap-2">
-          <ScoreBoard correct={score.c} total={score.t} />
+          <span className="text-sm font-semibold tabular-nums">{score.c}/{score.t}</span>
           <ThemeToggle dark={dark} onToggle={toggleTheme} />
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col gap-5 p-4">
-        <DifficultySelector value={difficulty} onChange={setDifficulty} />
-
+      {/* Status area (fixed height) */}
+      <section className="px-4 py-4 border-b h-[160px] flex flex-col items-center justify-center gap-3">
         {phase === 'playing' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-16">
-            <span className="text-6xl animate-pulse">♪</span>
-            <p className="text-muted-foreground text-sm">再生中...</p>
-          </div>
+          <>
+            <span className="text-4xl animate-pulse">♪</span>
+            <p className="text-sm text-muted-foreground">再生中...</p>
+          </>
         )}
 
         {phase === 'answering' && (
-          <form className="flex flex-col gap-3 py-10" onSubmit={handleSubmit}>
+          <p className="text-sm text-muted-foreground">曲名を入力してください</p>
+        )}
+
+        {phase === 'result' && song && (
+          <>
+            <Badge variant={isCorrect ? 'default' : 'destructive'} className="text-sm px-3 py-0.5">
+              {isCorrect ? '正解！' : '不正解'}
+            </Badge>
+            <div className="flex items-center gap-3">
+              <img src={thumb(song.video_id)} alt={song.title} className="w-20 h-15 object-cover rounded" />
+              <div>
+                <p className="font-bold">{song.title}</p>
+                <p className="text-xs text-muted-foreground">{song.artist}</p>
+                {!isCorrect && (
+                  <p className="text-xs text-red-500 mt-1">あなた: {answer || '(未入力)'}</p>
+                )}
+              </div>
+            </div>
+            {replayActive && (
+              <p className="text-xs text-muted-foreground animate-pulse">♪ 再生中...</p>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* History (always expanded, scrolls independently) */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+        <HistoryPanel history={history} />
+      </div>
+
+      {/* Bottom action bar (fixed height) */}
+      <div className="sticky bottom-0 px-4 py-3 border-t bg-background h-[60px] flex items-center">
+        {phase === 'result' ? (
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={handleReplay} disabled={replayActive} className="flex-1">
+              もう一度流す
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLong} disabled={replayActive} className="flex-1">
+              長めイントロ
+            </Button>
+            <Button size="sm" onClick={handleNext} className="flex-1">
+              次へ
+            </Button>
+          </div>
+        ) : (
+          <form className="flex gap-2 w-full" onSubmit={handleSubmit}>
             <Input
               ref={inputRef}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="曲名を入力..."
               autoComplete="off"
+              disabled={phase !== 'answering'}
             />
-            <Button type="submit">回答する</Button>
+            <Button type="submit" disabled={phase !== 'answering'}>
+              回答
+            </Button>
           </form>
         )}
-
-        {phase === 'result' && song && (
-          <div className="flex flex-col items-center gap-4">
-            <Badge variant={isCorrect ? 'default' : 'destructive'} className="text-base px-4 py-1">
-              {isCorrect ? '正解！' : '不正解'}
-            </Badge>
-            <img
-              src={thumb(song.video_id)}
-              alt={song.title}
-              className="w-full max-w-xs rounded-lg"
-            />
-            <div className="text-center">
-              <p className="text-lg font-bold">{song.title}</p>
-              <p className="text-sm text-muted-foreground">{song.artist}</p>
-            </div>
-            {!isCorrect && (
-              <p className="text-sm text-red-500">あなた: {answer || '(未入力)'}</p>
-            )}
-            {replayActive && (
-              <p className="text-sm text-muted-foreground animate-pulse">♪ 再生中...</p>
-            )}
-            <div className="flex gap-2 flex-wrap justify-center">
-              <Button variant="outline" size="sm" onClick={handleReplay} disabled={replayActive}>
-                もう一度流す
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleLong} disabled={replayActive}>
-                長めイントロ
-              </Button>
-              <Button size="sm" onClick={handleNext}>
-                次へ →
-              </Button>
-            </div>
-          </div>
-        )}
-      </main>
-
-      <HistoryPanel history={history} />
+      </div>
     </div>
   );
 }

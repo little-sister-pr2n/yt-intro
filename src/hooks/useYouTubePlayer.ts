@@ -55,7 +55,7 @@ export function useYouTubePlayer(onEnded: () => void) {
         events: {
           onReady(e) {
             if (!cancelled) {
-              e.target.setVolume(50);
+              e.target.setVolume(25);
               setReady(true);
             }
           },
