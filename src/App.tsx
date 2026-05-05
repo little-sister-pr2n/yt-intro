@@ -2,8 +2,40 @@ import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react'
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { judge } from './utils/judge';
 import { createQueue } from './utils/queue';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import type { Difficulty, QuizPhase, Song, HistoryEntry, SongQueue } from './types';
 import songs from './songs.json';
+
+function useTheme() {
+  const [dark, setDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+  }, [dark]);
+
+  return { dark, toggle: () => setDark((d) => !d) };
+}
+
+function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
+  return (
+    <Button variant="ghost" size="icon-sm" onClick={onToggle} aria-label="テーマ切替">
+      {dark ? (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
+          <path d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2ZM10 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM10 17a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 17ZM17 10a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 17 10ZM2 10a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5A.75.75 0 0 1 2 10ZM15.657 15.657a.75.75 0 0 1-1.06 0l-1.061-1.06a.75.75 0 1 1 1.06-1.061l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.404 5.404a.75.75 0 0 1-1.06 0l-1.061-1.06a.75.75 0 0 1 1.06-1.061l1.06 1.06a.75.75 0 0 1 0 1.06ZM15.657 4.343a.75.75 0 0 1 0 1.061l-1.06 1.06a.75.75 0 1 1-1.061-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.404 14.596a.75.75 0 0 1 0 1.06l-1.061 1.061a.75.75 0 0 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0Z" />
+        </svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
+          <path fillRule="evenodd" d="M7.455 2.004a.75.75 0 0 1 .26.77 7 7 0 0 0 9.958 7.967.75.75 0 0 1 1.067.853A8.5 8.5 0 1 1 6.647 1.921a.75.75 0 0 1 .808.083Z" clipRule="evenodd" />
+        </svg>
+      )}
+    </Button>
+  );
+}
 
 const DIFFICULTY_OFFSET: Record<Difficulty, number> = { normal: 10, hard: 5, expert: 1, monster: 0 };
 const DIFFICULTIES: Difficulty[] = ['normal', 'hard', 'expert', 'monster'];
@@ -18,57 +50,52 @@ function thumb(videoId: string): string {
 
 function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: (d: Difficulty) => void }) {
   return (
-    <div className="diff-selector">
+    <div className="flex gap-1.5 flex-wrap">
       {DIFFICULTIES.map((d) => (
-        <button
+        <Button
           key={d}
-          className={`diff-btn diff-${d}${value === d ? ' active' : ''}`}
+          variant={value === d ? 'default' : 'outline'}
+          size="xs"
           onClick={() => onChange(d)}
         >
           {d}
-        </button>
+        </Button>
       ))}
     </div>
   );
 }
 
-function ScoreBoard({ correct, total }: { correct: number; total: number }) {
-  return (
-    <div className="scoreboard">
-      <span className="score-num">{correct}</span>
-      <span className="score-sep"> / </span>
-      <span className="score-num">{total}</span>
-    </div>
-  );
-}
-
 function HistoryPanel({ history }: { history: HistoryEntry[] }) {
-  const [open, setOpen] = useState(false);
   if (!history.length) return null;
   return (
-    <div className="history-panel">
-      <button className="history-toggle" onClick={() => setOpen((o) => !o)}>
-        履歴 ({history.length}) {open ? '▲' : '▼'}
-      </button>
-      {open && (
-        <div className="history-list">
-          {[...history].reverse().map((item, i) => (
-            <div key={i} className={`history-item ${item.correct ? 'h-correct' : 'h-wrong'}`}>
-              <img src={item.thumbnailUrl} alt="" className="h-thumb" />
-              <div className="h-info">
-                <div className="h-title">{item.title}</div>
-                <div className="h-answer">{item.userAnswer || '(未回答)'}</div>
-              </div>
-              <span className="h-mark">{item.correct ? '○' : '×'}</span>
+    <div className="flex flex-col gap-2 overflow-y-auto">
+      {[...history].reverse().map((item, i) => (
+        <div
+          key={i}
+          className={`flex items-center gap-3 rounded-lg border p-2 ${
+            item.correct
+              ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+              : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
+          }`}
+        >
+          <img src={item.thumbnailUrl} alt="" className="w-14 h-10 object-cover rounded" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{item.title}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {item.userAnswer || '(未回答)'}
             </div>
-          ))}
+          </div>
+          <span className={`text-lg font-bold ${item.correct ? 'text-green-600' : 'text-red-500'}`}>
+            {item.correct ? '○' : '×'}
+          </span>
         </div>
-      )}
+      ))}
     </div>
   );
 }
 
 export default function App() {
+  const { dark, toggle: toggleTheme } = useTheme();
   const [difficulty, setDifficulty] = useState<Difficulty>('expert');
   const [started, setStarted] = useState(false);
 
@@ -159,83 +186,110 @@ export default function App() {
 
   if (!started) {
     return (
-      <div className="app">
-        <div className="start-screen">
-          <h1 className="app-title">
-            蓮ノ空<br />イントロクイズ
-          </h1>
-          <p className="subtitle">難易度を選んでスタート</p>
-          <DifficultySelector value={difficulty} onChange={setDifficulty} />
-          <button className="start-btn" onClick={handleStart} disabled={!ready}>
-            {ready ? 'スタート' : '読み込み中...'}
-          </button>
-        </div>
+      <div className="min-h-svh flex items-center justify-center p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center relative">
+            <div className="absolute right-4 top-4">
+              <ThemeToggle dark={dark} onToggle={toggleTheme} />
+            </div>
+            <CardTitle className="text-2xl font-bold">蓮ノ空 イントロクイズ</CardTitle>
+            <p className="text-sm text-muted-foreground">難易度を選んでスタート</p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-5">
+            <DifficultySelector value={difficulty} onChange={setDifficulty} />
+            <Button size="lg" onClick={handleStart} disabled={!ready} className="w-full">
+              {ready ? 'スタート' : '読み込み中...'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <span className="logo">蓮ノ空 イントロクイズ</span>
-        <ScoreBoard correct={score.c} total={score.t} />
+    <div className="h-svh flex flex-col max-w-md mx-auto overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
+          <DifficultySelector value={difficulty} onChange={setDifficulty} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold tabular-nums">{score.c}/{score.t}</span>
+          <ThemeToggle dark={dark} onToggle={toggleTheme} />
+        </div>
       </header>
 
-      <main className="app-main">
-        <DifficultySelector value={difficulty} onChange={setDifficulty} />
-
+      {/* Status area (fixed height) */}
+      <section className="px-4 py-4 border-b h-[160px] flex flex-col items-center justify-center gap-3">
         {phase === 'playing' && (
-          <div className="phase-playing">
-            <div className="music-icon">♪</div>
-            <p className="playing-text">再生中...</p>
-          </div>
+          <>
+            <span className="text-4xl animate-pulse">♪</span>
+            <p className="text-sm text-muted-foreground">再生中...</p>
+          </>
         )}
 
         {phase === 'answering' && (
-          <form className="phase-answering" onSubmit={handleSubmit}>
-            <input
+          <p className="text-sm text-muted-foreground">曲名を入力してください</p>
+        )}
+
+        {phase === 'result' && song && (
+          <>
+            <Badge variant={isCorrect ? 'default' : 'destructive'} className="text-sm px-3 py-0.5">
+              {isCorrect ? '正解！' : '不正解'}
+            </Badge>
+            <div className="flex items-center gap-3">
+              <img src={thumb(song.video_id)} alt={song.title} className="w-20 h-15 object-cover rounded" />
+              <div>
+                <p className="font-bold">{song.title}</p>
+                <p className="text-xs text-muted-foreground">{song.artist}</p>
+                {!isCorrect && (
+                  <p className="text-xs text-red-500 mt-1">あなた: {answer || '(未入力)'}</p>
+                )}
+              </div>
+            </div>
+            {replayActive && (
+              <p className="text-xs text-muted-foreground animate-pulse">♪ 再生中...</p>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* History (always expanded, scrolls independently) */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+        <HistoryPanel history={history} />
+      </div>
+
+      {/* Bottom action bar (fixed height) */}
+      <div className="sticky bottom-0 px-4 py-3 border-t bg-background h-[60px] flex items-center">
+        {phase === 'result' ? (
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={handleReplay} disabled={replayActive} className="flex-1">
+              もう一度流す
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLong} disabled={replayActive} className="flex-1">
+              長めイントロ
+            </Button>
+            <Button size="sm" onClick={handleNext} className="flex-1">
+              次へ
+            </Button>
+          </div>
+        ) : (
+          <form className="flex gap-2 w-full" onSubmit={handleSubmit}>
+            <Input
               ref={inputRef}
-              className="answer-input"
-              type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="曲名を入力..."
               autoComplete="off"
+              disabled={phase !== 'answering'}
             />
-            <button type="submit" className="btn-primary">
-              回答する
-            </button>
+            <Button type="submit" disabled={phase !== 'answering'}>
+              回答
+            </Button>
           </form>
         )}
-
-        {phase === 'result' && song && (
-          <div className="phase-result">
-            <div className={`result-badge ${isCorrect ? 'badge-correct' : 'badge-wrong'}`}>
-              {isCorrect ? '正解！' : '不正解'}
-            </div>
-            <img src={thumb(song.video_id)} alt={song.title} className="result-thumb" />
-            <p className="result-title">{song.title}</p>
-            <p className="result-artist">{song.artist}</p>
-            {!isCorrect && (
-              <p className="result-yours">あなた: {answer || '(未入力)'}</p>
-            )}
-            {replayActive && <p className="replay-indicator">♪ 再生中...</p>}
-            <div className="result-actions">
-              <button className="btn-secondary" onClick={handleReplay} disabled={replayActive}>
-                もう一度流す
-              </button>
-              <button className="btn-secondary" onClick={handleLong} disabled={replayActive}>
-                長めイントロ
-              </button>
-              <button className="btn-primary" onClick={handleNext}>
-                次へ →
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
-
-      <HistoryPanel history={history} />
+      </div>
     </div>
   );
 }
