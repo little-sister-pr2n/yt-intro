@@ -53,8 +53,11 @@ export function useYouTubePlayer(onEnded: () => void) {
         height: 1,
         playerVars: { autoplay: 0, controls: 0, disablekb: 1 },
         events: {
-          onReady() {
-            if (!cancelled) setReady(true);
+          onReady(e) {
+            if (!cancelled) {
+              e.target.setVolume(50);
+              setReady(true);
+            }
           },
           onStateChange(e) {
             if (e.data === yt.PlayerState.ENDED) {

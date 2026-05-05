@@ -47,6 +47,7 @@ declare namespace YT {
       startSeconds?: number;
       endSeconds?: number;
     }): void;
+    setVolume(volume: number): void;
     stopVideo(): void;
     destroy(): void;
   }
