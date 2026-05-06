@@ -1,4 +1,4 @@
-export type Difficulty = 'normal' | 'hard' | 'expert' | 'monster';
+export type Difficulty = 'normal' | 'hard' | 'expert' | 'monster' | 'breath';
 
 export type QuizPhase = 'playing' | 'answering' | 'result';
 
@@ -7,6 +7,7 @@ export interface Song {
   title: string;
   artist: string;
   intro_seconds: number;
+  breath_intro_seconds: number | null;
 }
 
 export interface HistoryEntry {
