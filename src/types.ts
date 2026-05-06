@@ -1,5 +1,7 @@
 export type Difficulty = 'normal' | 'hard' | 'expert' | 'monster' | 'breath';
 
+export type TagFilter = 'シャンシャン' | 'ドラム' | 'シンバル' | '息' | null;
+
 export type QuizPhase = 'playing' | 'answering' | 'result';
 
 export interface Song {
@@ -9,6 +11,7 @@ export interface Song {
   intro_seconds: number;
   breath_intro_seconds: number | null;
   period: number;
+  tag: string | null;
 }
 
 export interface HistoryEntry {

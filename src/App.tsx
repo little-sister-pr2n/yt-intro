@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import type { Difficulty, QuizPhase, Song, HistoryEntry, SongQueue } from './types';
+import type { Difficulty, QuizPhase, Song, HistoryEntry, SongQueue, TagFilter } from './types';
 import songs from './songs.json';
 
 function useTheme() {
@@ -69,6 +69,37 @@ function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: 
   );
 }
 
+const TAG_FILTERS: TagFilter[] = ['ドラム', 'シンバル', 'シャンシャン', '息'];
+
+function TagSelector({ value, onChange }: { value: TagFilter; onChange: (t: TagFilter) => void }) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      <Button
+        variant={value === null ? 'default' : 'outline'}
+        size="xs"
+        onClick={() => onChange(null)}
+      >
+        全曲
+      </Button>
+      {TAG_FILTERS.map((t) => (
+        <Button
+          key={t}
+          variant={value === t ? 'default' : 'outline'}
+          size="xs"
+          onClick={() => onChange(t)}
+        >
+          {t}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function filteredSongs(tag: TagFilter): Song[] {
+  if (tag === null) return songs as Song[];
+  return (songs as Song[]).filter((s) => s.tag === tag);
+}
+
 function HistoryPanel({ history }: { history: HistoryEntry[] }) {
   if (!history.length) return null;
   return (
@@ -101,6 +132,7 @@ function HistoryPanel({ history }: { history: HistoryEntry[] }) {
 export default function App() {
   const { dark, toggle: toggleTheme } = useTheme();
   const [difficulty, setDifficulty] = useState<Difficulty>('expert');
+  const [tagFilter, setTagFilter] = useState<TagFilter>(null);
   const [started, setStarted] = useState(false);
 
   const [phase, setPhase] = useState<QuizPhase>('playing');
@@ -139,16 +171,30 @@ export default function App() {
   );
 
   const handleStart = useCallback(() => {
-    queueRef.current = createQueue(songs as Song[]);
+    queueRef.current = createQueue(filteredSongs(tagFilter));
     setScore({ c: 0, t: 0 });
     setHistory([]);
     setStarted(true);
     nextSong(difficulty);
-  }, [difficulty, nextSong]);
+  }, [difficulty, tagFilter, nextSong]);
+
+  const handleTagChange = useCallback((t: TagFilter) => {
+    setTagFilter(t);
+    if (started) {
+      queueRef.current = createQueue(filteredSongs(t));
+    }
+  }, [started]);
 
   useEffect(() => {
     if (phase === 'answering') inputRef.current?.focus();
   }, [phase]);
+
+  const autoPlayLong = useCallback((s: Song) => {
+    setTimeout(() => {
+      setReplayActive(true);
+      play(s.video_id, 0, 20);
+    }, 300);
+  }, [play]);
 
   const handleSubmit = useCallback(
     (e?: FormEvent) => {
@@ -168,8 +214,9 @@ export default function App() {
         },
       ]);
       setPhase('result');
+      autoPlayLong(song);
     },
-    [phase, song, answer],
+    [phase, song, answer, autoPlayLong],
   );
 
   const handleGiveUp = useCallback(() => {
@@ -187,7 +234,8 @@ export default function App() {
       },
     ]);
     setPhase('result');
-  }, [song, phase, answer]);
+    autoPlayLong(song);
+  }, [song, phase, answer, autoPlayLong]);
 
   const handleReplay = useCallback(() => {
     if (!song) return;
@@ -218,7 +266,8 @@ export default function App() {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-5">
             <DifficultySelector value={difficulty} onChange={setDifficulty} />
-            <Button size="lg" onClick={handleStart} disabled={!ready} className="w-full">
+            <TagSelector value={tagFilter} onChange={setTagFilter} />
+            <Button size="lg" onClick={handleStart} disabled={!ready || filteredSongs(tagFilter).length === 0} className="w-full">
               {ready ? 'スタート' : '読み込み中...'}
             </Button>
           </CardContent>
@@ -230,19 +279,20 @@ export default function App() {
   return (
     <div className="h-svh flex flex-col max-w-md mx-auto overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10">
-        <div className="flex items-center gap-3">
+      <header className="px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10 space-y-2">
+        <div className="flex items-center justify-between">
           <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
-          <DifficultySelector value={difficulty} onChange={setDifficulty} />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tabular-nums">{score.c}/{score.t}</span>
+            <ThemeToggle dark={dark} onToggle={toggleTheme} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold tabular-nums">{score.c}/{score.t}</span>
-          <ThemeToggle dark={dark} onToggle={toggleTheme} />
-        </div>
+        <DifficultySelector value={difficulty} onChange={setDifficulty} />
+        <TagSelector value={tagFilter} onChange={handleTagChange} />
       </header>
 
       {/* Status area (fixed height) */}
-      <section className="px-4 py-4 border-b h-[160px] flex flex-col items-center justify-center gap-3">
+      <section className="px-4 py-4 border-b h-[160px] flex flex-col items-center justify-center gap-3 relative">
         {phase === 'playing' && (
           <>
             <span className="text-4xl animate-pulse">♪</span>
@@ -270,7 +320,7 @@ export default function App() {
               </div>
             </div>
             {replayActive && (
-              <p className="text-xs text-muted-foreground animate-pulse">♪ 再生中...</p>
+              <p className="absolute bottom-2 text-xs text-muted-foreground animate-pulse">♪ 再生中...</p>
             )}
           </>
         )}
@@ -305,9 +355,6 @@ export default function App() {
       <div className="px-4 py-3 border-t bg-background h-[60px] flex items-center">
         {phase === 'result' ? (
           <div className="flex gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={handleReplay} disabled={replayActive} className="flex-1">
-              もう一度流す
-            </Button>
             <Button variant="outline" size="sm" onClick={handleLong} disabled={replayActive} className="flex-1">
               長めイントロ
             </Button>
