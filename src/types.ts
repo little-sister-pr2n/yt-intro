@@ -8,6 +8,7 @@ export interface Song {
   artist: string;
   intro_seconds: number;
   breath_intro_seconds: number | null;
+  period: number;
 }
 
 export interface HistoryEntry {

@@ -172,6 +172,23 @@ export default function App() {
     [phase, song, answer],
   );
 
+  const handleGiveUp = useCallback(() => {
+    if (!song || phase === 'result') return;
+    setIsCorrect(false);
+    setScore((s) => ({ c: s.c, t: s.t + 1 }));
+    setHistory((h) => [
+      ...h,
+      {
+        title: song.title,
+        artist: song.artist,
+        thumbnailUrl: thumb(song.video_id),
+        userAnswer: answer,
+        correct: false,
+      },
+    ]);
+    setPhase('result');
+  }, [song, phase, answer]);
+
   const handleReplay = useCallback(() => {
     if (!song) return;
     setReplayActive(true);
@@ -264,8 +281,28 @@ export default function App() {
         <HistoryPanel history={history} />
       </div>
 
+      {/* Utility buttons (fixed) */}
+      <div className="px-4 py-2 border-t flex gap-2 h-[44px] items-center">
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={handleReplay}
+          disabled={phase === 'result' && replayActive}
+        >
+          もう一度再生
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={handleGiveUp}
+          disabled={phase === 'result'}
+        >
+          ギブアップ
+        </Button>
+      </div>
+
       {/* Bottom action bar (fixed height) */}
-      <div className="sticky bottom-0 px-4 py-3 border-t bg-background h-[60px] flex items-center">
+      <div className="px-4 py-3 border-t bg-background h-[60px] flex items-center">
         {phase === 'result' ? (
           <div className="flex gap-2 w-full">
             <Button variant="outline" size="sm" onClick={handleReplay} disabled={replayActive} className="flex-1">
