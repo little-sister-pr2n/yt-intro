@@ -100,6 +100,78 @@ function filteredSongs(tag: TagFilter): Song[] {
   return (songs as Song[]).filter((s) => s.tag === tag);
 }
 
+type SortKey = 'title' | 'artist' | 'period';
+type SortDir = 'asc' | 'desc';
+
+function SongList({ difficulty, play, stop }: { difficulty: Difficulty; play: (videoId: string, start: number, end: number) => void; stop: () => void }) {
+  const [sortKey, setSortKey] = useState<SortKey>('title');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sorted = [...(songs as Song[])].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === 'title') cmp = a.title.localeCompare(b.title, 'ja');
+    else if (sortKey === 'artist') cmp = a.artist.localeCompare(b.artist, 'ja');
+    else cmp = a.period - b.period;
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const arrow = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+  const handlePlay = (s: Song, long: boolean) => {
+    stop();
+    play(s.video_id, 0, long ? 20 : playSeconds(s, difficulty));
+  };
+
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-background border-b">
+          <tr>
+            <th className="text-left py-2 px-3 font-medium cursor-pointer select-none" onClick={() => toggleSort('title')}>
+              曲名{arrow('title')}
+            </th>
+            <th className="text-left py-2 px-3 font-medium cursor-pointer select-none" onClick={() => toggleSort('artist')}>
+              アーティスト{arrow('artist')}
+            </th>
+            <th className="text-left py-2 px-1 font-medium cursor-pointer select-none w-10" onClick={() => toggleSort('period')}>
+              期{arrow('period')}
+            </th>
+            <th className="py-2 px-1 font-medium w-16">再生</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((s) => (
+            <tr key={`${s.video_id}-${s.period}`} className="border-b">
+              <td className="py-1.5 px-3 truncate max-w-[140px]">{s.title}</td>
+              <td className="py-1.5 px-3 truncate max-w-[100px] text-muted-foreground">{s.artist}</td>
+              <td className="py-1.5 px-1 text-muted-foreground">{s.period}</td>
+              <td className="py-1.5 px-1">
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="xs" onClick={() => handlePlay(s, false)} title="イントロ">
+                    ▶
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => handlePlay(s, true)} title="長めイントロ">
+                    ▶▶
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function HistoryPanel({ history }: { history: HistoryEntry[] }) {
   if (!history.length) return null;
   return (
@@ -134,6 +206,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>('expert');
   const [tagFilter, setTagFilter] = useState<TagFilter>(null);
   const [started, setStarted] = useState(false);
+  const [showList, setShowList] = useState(false);
 
   const [phase, setPhase] = useState<QuizPhase>('playing');
   const phaseRef = useRef(phase);
@@ -258,6 +331,24 @@ export default function App() {
     nextSong(difficulty);
   }, [difficulty, nextSong]);
 
+  if (showList) {
+    return (
+      <div className="h-svh flex flex-col max-w-2xl mx-auto overflow-hidden">
+        <header className="px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="xs" onClick={() => setShowList(false)}>← 戻る</Button>
+              <span className="text-sm font-bold">曲一覧</span>
+            </div>
+            <ThemeToggle dark={dark} onToggle={toggleTheme} />
+          </div>
+          <DifficultySelector value={difficulty} onChange={setDifficulty} />
+        </header>
+        <SongList difficulty={difficulty} play={play} stop={stop} />
+      </div>
+    );
+  }
+
   if (!started) {
     return (
       <div className="min-h-svh flex items-center justify-center p-4">
@@ -266,12 +357,17 @@ export default function App() {
             <div className="absolute right-4 top-4">
               <ThemeToggle dark={dark} onToggle={toggleTheme} />
             </div>
-            <CardTitle className="text-2xl font-bold">蓮ノ空 イントロクイズ</CardTitle>
-            <p className="text-sm text-muted-foreground">難易度を選んでスタート</p>
+            <CardTitle className="text-2xl font-bold">
+              蓮ノ空 イントロクイズ
+            </CardTitle>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-sm text-muted-foreground">難易度を選んでスタート</p>
+              <Button variant="ghost" size="xs" onClick={() => setShowList(true)}>一覧</Button>
+            </div>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-5">
             <DifficultySelector value={difficulty} onChange={setDifficulty} />
-            <TagSelector value={tagFilter} onChange={setTagFilter} />
+            {/* <TagSelector value={tagFilter} onChange={setTagFilter} /> */}
             <Button size="lg" onClick={handleStart} disabled={!ready || filteredSongs(tagFilter).length === 0} className="w-full">
               {ready ? 'スタート' : '読み込み中...'}
             </Button>
@@ -286,14 +382,17 @@ export default function App() {
       {/* Header */}
       <header className="px-4 py-3 border-b sticky top-0 bg-background/80 backdrop-blur z-10 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold">蓮ノ空 イントロクイズ</span>
+            <Button variant="ghost" size="xs" onClick={() => { stop(); setShowList(true); }}>一覧</Button>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold tabular-nums">{score.c}/{score.t}</span>
             <ThemeToggle dark={dark} onToggle={toggleTheme} />
           </div>
         </div>
         <DifficultySelector value={difficulty} onChange={setDifficulty} />
-        <TagSelector value={tagFilter} onChange={handleTagChange} />
+        {/* <TagSelector value={tagFilter} onChange={handleTagChange} /> */}
       </header>
 
       {/* Status area (fixed height) */}
