@@ -37,10 +37,14 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
   );
 }
 
-const DIFFICULTY_OFFSET: Record<Difficulty, number> = { normal: 10, hard: 5, expert: 1, monster: 0 };
-const DIFFICULTIES: Difficulty[] = ['normal', 'hard', 'expert', 'monster'];
+const DIFFICULTY_OFFSET: Record<Exclude<Difficulty, 'breath'>, number> = { normal: 10, hard: 5, expert: 1, monster: 0 };
+const DIFFICULTIES: Difficulty[] = ['normal', 'hard', 'expert', 'monster', 'breath'];
+const DIFFICULTY_LABELS: Record<Difficulty, string> = { normal: 'normal', hard: 'hard', expert: 'expert', monster: 'monster', breath: '超イントロ' };
 
 function playSeconds(song: Song, diff: Difficulty): number {
+  if (diff === 'breath') {
+    return song.breath_intro_seconds ?? song.intro_seconds;
+  }
   return song.intro_seconds + DIFFICULTY_OFFSET[diff];
 }
 
@@ -58,7 +62,7 @@ function DifficultySelector({ value, onChange }: { value: Difficulty; onChange: 
           size="xs"
           onClick={() => onChange(d)}
         >
-          {d}
+          {DIFFICULTY_LABELS[d]}
         </Button>
       ))}
     </div>
