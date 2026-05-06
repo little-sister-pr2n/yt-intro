@@ -271,7 +271,7 @@ export default function App() {
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-5">
             <DifficultySelector value={difficulty} onChange={setDifficulty} />
-            <TagSelector value={tagFilter} onChange={setTagFilter} />
+            {/* <TagSelector value={tagFilter} onChange={setTagFilter} /> */}
             <Button size="lg" onClick={handleStart} disabled={!ready || filteredSongs(tagFilter).length === 0} className="w-full">
               {ready ? 'スタート' : '読み込み中...'}
             </Button>
@@ -293,7 +293,7 @@ export default function App() {
           </div>
         </div>
         <DifficultySelector value={difficulty} onChange={setDifficulty} />
-        <TagSelector value={tagFilter} onChange={handleTagChange} />
+        {/* <TagSelector value={tagFilter} onChange={handleTagChange} /> */}
       </header>
 
       {/* Status area (fixed height) */}
