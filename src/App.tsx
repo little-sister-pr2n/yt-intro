@@ -144,6 +144,7 @@ export default function App() {
   const [answer, setAnswer] = useState('');
   const [isCorrect, setIsCorrect] = useState(false);
   const [replayActive, setReplayActive] = useState(false);
+  const [inputLocked, setInputLocked] = useState(false);
   const [score, setScore] = useState({ c: 0, t: 0 });
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -151,12 +152,12 @@ export default function App() {
   const onEnded = useCallback(() => {
     if (phaseRef.current === 'playing') {
       setPhase('answering');
-    } else {
+    } else if (phaseRef.current !== 'result') {
       setReplayActive(false);
     }
   }, []);
 
-  const { ready, play } = useYouTubePlayer(onEnded);
+  const { ready, play, stop } = useYouTubePlayer(onEnded);
 
   const nextSong = useCallback(
     (diff: Difficulty) => {
@@ -165,6 +166,8 @@ export default function App() {
       setAnswer('');
       setPhase('playing');
       setReplayActive(false);
+      setInputLocked(true);
+      setTimeout(() => setInputLocked(false), 600);
       play(s.video_id, 0, playSeconds(s, diff));
     },
     [play],
@@ -199,7 +202,8 @@ export default function App() {
   const handleSubmit = useCallback(
     (e?: FormEvent) => {
       e?.preventDefault();
-      if (phase !== 'answering' || !song) return;
+      if (phase === 'result' || !song) return;
+      stop();
       const ok = judge(answer, song.title);
       setIsCorrect(ok);
       setScore((s) => ({ c: s.c + (ok ? 1 : 0), t: s.t + 1 }));
@@ -216,11 +220,12 @@ export default function App() {
       setPhase('result');
       autoPlayLong(song);
     },
-    [phase, song, answer, autoPlayLong],
+    [phase, song, answer, autoPlayLong, stop],
   );
 
   const handleGiveUp = useCallback(() => {
     if (!song || phase === 'result') return;
+    stop();
     setIsCorrect(false);
     setScore((s) => ({ c: s.c, t: s.t + 1 }));
     setHistory((h) => [
@@ -235,7 +240,7 @@ export default function App() {
     ]);
     setPhase('result');
     autoPlayLong(song);
-  }, [song, phase, answer, autoPlayLong]);
+  }, [song, phase, answer, autoPlayLong, stop]);
 
   const handleReplay = useCallback(() => {
     if (!song) return;
@@ -370,9 +375,9 @@ export default function App() {
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="曲名を入力..."
               autoComplete="off"
-              disabled={phase !== 'answering'}
+              disabled={inputLocked}
             />
-            <Button type="submit" disabled={phase !== 'answering'}>
+            <Button type="submit" disabled={inputLocked}>
               回答
             </Button>
           </form>
